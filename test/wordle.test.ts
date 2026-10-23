@@ -32,7 +32,7 @@ describe('matchGuess', () => {
   it('only uses the colors G, Y, B', () => {
     fc.assert(
       fc.property(word, word, (secret, guess) => {
-        expect(matchGuess(secret, guess)).toMatch(/^[GYB]{5}$/);
+        expect(matchGuess(secret, guess).join('')).toMatch(/^[GYB]{5}$/);
       }),
     );
   });
@@ -57,6 +57,4 @@ describe('matchGuess', () => {
       })
     )
   });
-
-
 });

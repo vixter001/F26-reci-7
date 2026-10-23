@@ -6,15 +6,15 @@ import { mergeIntervals, type Interval } from '../src/intervals';
 // Read the spec in src/intervals/mergeIntervals.ts, then check your progress
 // with `npm run mutants:intervals`.
 //
-// Label every property with its pattern, on the line above its `it(`:
-//   // Pattern: invariant. The output is sorted.
-// (invariant, algebraic, metamorphic, differential, or conditional)
+// Label every property on the line above its it(, in this format:
+// Pattern: <name>. <property in English>
+// where <name> is invariant, algebraic, metamorphic, differential, or conditional.
 
 // A first attempt at a generator. It has a problem: run the tests and read
 // the counterexample.
 const interval: fc.Arbitrary<Interval> = fc
   .tuple(fc.integer({ min: -20, max: 20 }), fc.nat(10))
-  .map(([start, len]) => [start, start + len]);
+  .map(([start, len]) => [start, start + len] as Interval);
 const intervalList = fc.array(interval);
 
 const disjointList: fc.Arbitrary<Interval[]> = fc
@@ -35,26 +35,41 @@ const covers = (xs: readonly Interval[], p: number) =>
   xs.some(([a, b]) => a <= p && p <= b);
 
 describe('mergeIntervals', () => {
+  // Pattern: invariant. The output is sorted and has no overlapping intervals.
+  it('returns sorted, non-overlapping intervals', () => {
+    fc.assert(
+      fc.property(intervalList, xs => {
+        const out = mergeIntervals(xs);
+        for (let i = 0; i + 1 < out.length; i++) {
+          expect(out[i][1]).toBeLessThan(out[i + 1][0]);
+        }
+      }),
+    );
+  });
+
   // Pattern: invariant. Every input interval lies inside some output interval.
   it('every input interval lies inside some output interval', () => {
     fc.assert(
       fc.property(intervalList, xs => {
-        const copy = xs.map(([a, b]) => [a, b] as Interval);
         const out = mergeIntervals(xs);
         const uncovered = xs.filter(([s, e]) => !out.some(([a, b]) => a <= s && e <= b));
         expect(uncovered).toEqual([]);
-        for (let i = 0; i + 1 < out.length; i++) {
-          expect(out[i][1]).toBeLessThan(out[i + 1][0]);
-        }
+      }),
+    );
+  });
+
+  // Pattern: invariant. The input array is not modified.
+  it('does not modify its input', () => {
+    fc.assert(
+      fc.property(intervalList, xs => {
+        const copy = xs.map(([a, b]) => [a, b] as Interval);
+        mergeIntervals(xs);
         expect(xs).toEqual(copy);
       }),
     );
   });
 
-  // Add your properties here. Aim for at least one of each pattern:
-  // invariant, algebraic, metamorphic, differential, conditional.
-
-  // Pattern: differential. Compare point coverage of input and output.
+  // Pattern: differential. The output covers exactly the same points as the input.
   // twiceP is 2p, so this checks half-integer points from -22 to 32.
   it('covers exactly the same points as the input', () => {
     fc.assert(
